@@ -56,6 +56,18 @@ namespace apim_utils.Supports
             });
         }
 
+        public static Action<HttpClient> AddSpecialContentType(this Action<HttpClient> action, string contentType)
+        {
+            return new Action<HttpClient>((httpClient) =>
+            {
+                action(httpClient);
+
+                httpClient.DefaultRequestHeaders.Accept.Clear();
+                httpClient.DefaultRequestHeaders.Accept
+                .Add(new MediaTypeWithQualityHeaderValue(contentType));
+            });
+        }
+
         public static Action<HttpClient> GetAzureManagementApiHeaderFormatter(
             this AuthenticationResult token)
         {

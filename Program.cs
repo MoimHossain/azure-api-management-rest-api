@@ -7,15 +7,19 @@ using System.Threading.Tasks;
 using apim_utils.Models;
 using System.Linq;
 using apim_utils.Supports;
+using apim_utils.Experiments;
 
 namespace apim_utils
 {
+    /// <summary>
+    /// apim_utils -cerate-revision "
+    /// </summary>
     class Program
     {
         static void Main(string[] args)
         {
             RunAppAsync().Wait();
-        }
+        }        
 
         private async static Task RunAppAsync()
         {
@@ -34,8 +38,8 @@ namespace apim_utils
                 }
             };
 
-            await CreateOrUpdateAsync(petStoreApiSpec);
-            await AddApiToProductAsync(product, apiName);
+            //await CreateOrUpdateAsync(petStoreApiSpec);
+            //await AddApiToProductAsync(product, apiName);
 
             var betaSpec = new ApiSpecificationPayload
             {
@@ -50,23 +54,24 @@ namespace apim_utils
                     Protocols = new string[] { "https" }
                 }
             };
-            await AddRevisionAsync(apiName, "3", betaSpec);
+            await AddRevisionAsync(apiName, "preview", betaSpec);
+
+
+            await ReleaseRevisionAsync(apiName, "preview", "Release this revision");
         }
 
-        public async static Task CreateOrUpdateVersionSetAsync(
-            string setName, string displayName, string description)
+        public async static Task ReleaseRevisionAsync(string apiId, string revision, string remark)
         {
-            var path = $"{GetBasePath()}/api-version-sets/{setName}?api-version=2018-06-01-preview";
-            await Constants.Azure
-                .PutRestAsync(path, new
+            var path = $"{GetBasePath()}/apis/{apiId}/releases/{Guid.NewGuid().ToString("N")}?api-version=2017-03-01";
+            var lambda = (await TokenHelper.GetAzureAuthToken())
+                .AddIfMatch();
+
+            await Constants.Azure.PutRestAsync(path,
+                new
                 {
-                    Properties = new
-                    {
-                        DisplayName = displayName,
-                        Description = description,
-                        VersioningScheme = "Segment"
-                    }
-                }, (await TokenHelper.GetAzureAuthToken()).AddIfMatch());
+                    apiId = $"/apis/{apiId};rev={revision}",
+                    notes = remark
+                }, lambda);
         }
 
         public async static Task<VersionSchemeCollection> ListApiVersionSchemeAsync()
@@ -120,6 +125,29 @@ namespace apim_utils
         private static string GetBasePath()
         {
             return $"/subscriptions/{Constants.SubscriptionId}/resourceGroups/{Constants.ResourceGroupName}/providers/Microsoft.ApiManagement/service/{Constants.ServiceName}";
+        }
+
+
+
+        private async static Task TestRunAsync()
+        {
+            var apim = new ApimClient();
+            var apiId = "delft";
+            var versionSetName = "contoso-version-set";
+
+            await apim.CreateOrUpdateVersionSetAsync(
+                versionSetName, versionSetName, $"{versionSetName} description");
+
+            await apim.CreateOrUpdateApiAsync(apiId, new
+            {
+                name = apiId,
+                path = "api",
+                serviceUrl = "http://example.org",
+                protocols = new string[] { "https" },
+                apiVersion = "v1",
+                apiVersionDescription = "Initial Version",
+                apiVersionSetId = $"/api-version-sets/{versionSetName}"
+            });
         }
     }
 }

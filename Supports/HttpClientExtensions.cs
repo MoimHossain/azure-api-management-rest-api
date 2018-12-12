@@ -84,7 +84,7 @@ namespace apim_utils.Supports
             }
         }
 
-        public static async Task<string> PutRestAsync(
+        public static async Task<bool> PutRestAsync(
           this Uri baseAddress, string requestPath, object payload, Action<HttpClient> configureClient)
         {
             using (var client = new HttpClient())
@@ -99,13 +99,10 @@ namespace apim_utils.Supports
                   });
                 var jsonContent = new StringContent(jsonString, Encoding.UTF8, "application/json");
                 var response = await client.PutAsync(requestPath, jsonContent);
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsStringAsync();
-                }
-            }
+                var text = await response.Content.ReadAsStringAsync();
 
-            return string.Empty;
+                return response.IsSuccessStatusCode;
+            }
         }
 
         public static async Task<TResponsePayload> PutRestAsync<TRequestPayload, TResponsePayload>(
